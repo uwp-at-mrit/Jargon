@@ -7,6 +7,12 @@
     <Filter Include="asn\der">
       <UniqueIdentifier>{aad430da-dbf5-4d70-9178-92f459180bfc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="datum">
+      <UniqueIdentifier>{9178e259-6bfc-46ea-956b-e0ce4a8a0184}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="crypto">
+      <UniqueIdentifier>{953db432-1d94-420d-a8f0-6c081798d670}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\base.cpp">
@@ -17,6 +23,12 @@
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\sequence.cpp">
       <Filter>asn\der</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)datum\natural.cpp">
+      <Filter>datum</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)crypto\checksum.cpp">
+      <Filter>crypto</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -34,6 +46,12 @@
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der.hpp">
       <Filter>asn</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)datum\natural.hpp">
+      <Filter>datum</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)crypto\checksum.hpp">
+      <Filter>crypto</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
