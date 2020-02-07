@@ -13,6 +13,9 @@
     <Filter Include="crypto">
       <UniqueIdentifier>{953db432-1d94-420d-a8f0-6c081798d670}</UniqueIdentifier>
     </Filter>
+    <Filter Include="peer">
+      <UniqueIdentifier>{ed4450f5-bd1f-4dd4-966b-bd7faced7b84}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\base.cpp">
