@@ -1,6 +1,6 @@
 #pragma once
 
-namespace WarGrey::DTPM {
+namespace WarGrey::GYDM {
 	unsigned long checksum_crc32(const uint8* message, size_t start, size_t end);
 	unsigned long checksum_crc32(unsigned long accumulated_crc, const uint8* message, size_t start, size_t end);
 	unsigned long checksum_crc32(unsigned long* accumulated_crc, const uint8* message, size_t start, size_t end);

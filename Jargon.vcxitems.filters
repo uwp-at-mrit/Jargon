@@ -33,6 +33,9 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)crypto\checksum.cpp">
       <Filter>crypto</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)peer\slang.cpp">
+      <Filter>peer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der\base.hpp">
@@ -55,6 +58,9 @@
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)crypto\checksum.hpp">
       <Filter>crypto</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)peer\slang.hpp">
+      <Filter>peer</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

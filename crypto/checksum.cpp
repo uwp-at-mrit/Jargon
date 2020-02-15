@@ -1,6 +1,6 @@
 #include "crypto/checksum.hpp"
 
-using namespace WarGrey::DTPM;
+using namespace WarGrey::GYDM;
 
 /*************************************************************************************************/
 static unsigned long crc_table[256];
@@ -46,15 +46,15 @@ static unsigned long update_crc(unsigned long crc, const uint8* message, size_t 
 }
 
 /*************************************************************************************************/
-unsigned long WarGrey::DTPM::checksum_crc32(const uint8* message, size_t start, size_t end) {
+unsigned long WarGrey::GYDM::checksum_crc32(const uint8* message, size_t start, size_t end) {
     return update_crc(0xFFFFFFFFL, message, start, end) ^ 0xFFFFFFFFL;
 }
 
-unsigned long WarGrey::DTPM::checksum_crc32(unsigned long acc_crc, const uint8* message, size_t start, size_t end) {
+unsigned long WarGrey::GYDM::checksum_crc32(unsigned long acc_crc, const uint8* message, size_t start, size_t end) {
     return update_crc(~acc_crc, message, start, end) ^ 0xFFFFFFFFL;
 }
 
-unsigned long  WarGrey::DTPM::checksum_crc32(unsigned long* acc_crc, const uint8* message, size_t start, size_t end) {
+unsigned long  WarGrey::GYDM::checksum_crc32(unsigned long* acc_crc, const uint8* message, size_t start, size_t end) {
     unsigned long crc = 0UL;
 
     if (acc_crc == nullptr) {

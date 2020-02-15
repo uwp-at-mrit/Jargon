@@ -209,8 +209,16 @@ size_t WarGrey::GYDM::asn_octets_to_length(const uint8* blength, size_t* offset)
 }
 
 /*************************************************************************************************/
+bool WarGrey::GYDM::asn_primitive_predicate(ASNPrimitive type, const uint8* content, size_t offset) {
+    return (asn_primitive_identifier_octet(type) == content[offset]);
+}
+
 bool WarGrey::GYDM::asn_primitive_predicate(ASNPrimitive type, octets& content, size_t offset) {
     return (asn_primitive_identifier_octet(type) == content[offset]);
+}
+
+bool WarGrey::GYDM::asn_constructed_predicate(ASNConstructed type, const uint8* content, size_t offset) {
+    return (asn_constructed_identifier_octet(type) == content[offset]);
 }
 
 bool WarGrey::GYDM::asn_constructed_predicate(ASNConstructed type, octets& content, size_t offset) {

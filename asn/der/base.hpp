@@ -9,7 +9,9 @@
 namespace WarGrey::GYDM {
     typedef std::basic_string<unsigned char> octets;
 
+    bool asn_primitive_predicate(WarGrey::GYDM::ASNPrimitive type, const uint8* content, size_t offset = 0);
     bool asn_primitive_predicate(WarGrey::GYDM::ASNPrimitive type, WarGrey::GYDM::octets& content, size_t offset = 0);
+    bool asn_constructed_predicate(WarGrey::GYDM::ASNConstructed type, const uint8* content, size_t offset = 0);
     bool asn_constructed_predicate(WarGrey::GYDM::ASNConstructed type, WarGrey::GYDM::octets& content, size_t offset = 0);
 
     size_t asn_length_span(size_t length);
