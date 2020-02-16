@@ -51,9 +51,9 @@ void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platfor
 
 	auto peer_host = hostname_ref(peer);
 
-	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](IOutputStream^ out) {
+	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](task<IOutputStream^> opening) {
 		uint8 version = ((response_port == 0) ? 0 : 1);
-		auto udpout = ref new DataWriter(out);
+		auto udpout = ref new DataWriter(opening.get());
 		unsigned long checksum = 0;
 		double sending_ms = current_inexact_milliseconds();
 		
@@ -280,14 +280,16 @@ void ISlangDaemon::bind() {
 	if (this->socket != nullptr) {
 		auto bind_task = create_task(this->socket->BindServiceNameAsync(this->service.ToString()));
 		
-		bind_task.then([=](void) {
+		bind_task.then([=](task<void> binding) {
 			try {
+				binding.get();
+
 				if (this->service == 0) {
 					this->service = (uint16)string_to_fixnum(this->socket->Information->LocalPort);
 				}
 
 				this->logger->log_message(Log::Info, L"## binding on 0.0.0.0:%u [buffer size: %d]",
-					this->service, this->socket->Control->InboundBufferSizeInBytes);
+					this->service, this->socket->Control->InboundBufferSizeInBytes - slang_message_metadata_upsize);
 			} catch (task_canceled&) {
 			} catch (Platform::Exception ^ e) {
 				this->logger->log_message(Log::Warning, e->Message);
