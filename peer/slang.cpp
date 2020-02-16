@@ -10,9 +10,8 @@
 
 #include "network/socket.hpp"
 #include "network/netexn.hpp"
-#include "modbus/exception.hpp"
+#include "network/hostname.hpp"
 
-#include "system.hpp"
 #include "syslog.hpp"
 #include "taskexn.hpp"
 
@@ -50,10 +49,9 @@ void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platfor
 	static auto stupid_cx = ref new Platform::Array<uint8>(4);
 	static uint8* metainfo = stupid_cx->Data;
 
-	auto peer_host = ref new HostName((peer == nullptr) ? "255.255.255.255" : peer);
-	auto cast_task = socket->GetOutputStreamAsync(peer_host, peer_port.ToString());
+	auto peer_host = hostname_ref(peer);
 
-	create_task(cast_task).then([=](IOutputStream^ out) {
+	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](IOutputStream^ out) {
 		uint8 version = ((response_port == 0) ? 0 : 1);
 		auto udpout = ref new DataWriter(out);
 		unsigned long checksum = 0;
@@ -154,14 +152,16 @@ public:
 								double applying_ms = current_inexact_milliseconds();
 								long long now_ms = current_milliseconds();
 
-								this->master->notify_data_unboxed(total, applying_ms - unboxing_ts);
+								this->master->notify_message_unboxed(total, applying_ms - unboxing_ts);
+								this->logger->log_message(Log::Debug, L"<recieved %u-byte slang message(%s, %u, %u) from %s:%u>",
+									total, this->master->message_typename(type)->Data(), transaction, response_port, peer->Data(), port);
 								
 								switch (version) {
 								case 1: this->master->on_message(now_ms, peer, port, transaction, response_port, type, payload); break;
 								default: this->master->on_message(now_ms, peer, port, type, payload);
 								}
 
-								this->master->notify_data_applied(total, current_inexact_milliseconds() - applying_ms);
+								this->master->notify_message_applied(total, current_inexact_milliseconds() - applying_ms);
 							} else {
 								task_discard(this->logger, L"%s:%d: discard truncated slang message", peer->Data(), port);
 							}
@@ -191,12 +191,12 @@ void WarGrey::GYDM::slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload
 	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(uint16 peer_port, const uint8* payload, size_t size, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	return slang_cast(nullptr, peer_port, payload, size, type, response_port, transaction, fthen);
+void WarGrey::GYDM::slang_cast(uint16 peer_port, const octets& payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
+	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const uint8* payload_raw, size_t size, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	auto payload = new Platform::ArrayReference<uint8>((uint8*)payload_raw, (unsigned int)size);
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const octets& payload_raw, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
+	auto payload = new Platform::ArrayReference<uint8>((uint8*)payload_raw.c_str(), (unsigned int)payload_raw.size());
 
 	return slang_cast(peer, peer_port, reinterpret_cast<Platform::Array<uint8>^>(payload), type, response_port, transaction, fthen);
 }
@@ -224,7 +224,7 @@ void WarGrey::GYDM::slang_cast_log_message(Platform::String^ host, uint16 port, 
 
 /*************************************************************************************************/
 ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, ISlangLocalPeer* cf) : ISlangDaemon(sl, p, 512U, cf) {}
-ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p) {
+ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p), group(nullptr) {
 	this->logger = ((sl == nullptr) ? make_silent_logger("Silent Slang Daemon") : sl);
 	this->logger->reference();
 
@@ -266,6 +266,10 @@ Syslog* ISlangDaemon::get_logger() {
 	return this->logger;
 }
 
+Platform::String^ ISlangDaemon::message_typename(uint8 type) {
+	return type.ToString();
+}
+
 void ISlangDaemon::push_slang_local_peer(ISlangLocalPeer* peer) {
 	if (peer != nullptr) {
 		this->local_peers.push_back(peer);
@@ -282,13 +286,22 @@ void ISlangDaemon::bind() {
 					this->service = (uint16)string_to_fixnum(this->socket->Information->LocalPort);
 				}
 
-				this->logger->log_message(Log::Info, L"## binding on 0.0.0.0:%u", this->service);
+				this->logger->log_message(Log::Info, L"## binding on 0.0.0.0:%u [buffer size: %d]",
+					this->service, this->socket->Control->InboundBufferSizeInBytes);
 			} catch (task_canceled&) {
 			} catch (Platform::Exception ^ e) {
 				this->logger->log_message(Log::Warning, e->Message);
 			}
 		});
 	}
+}
+
+void ISlangDaemon::join_multicast_group(Platform::String^ ipv4) {
+	// TODO: rejoin after network adapter changed if necessary.
+
+	this->socket->JoinMulticastGroup(hostname_ref(ipv4));
+	this->group = ipv4;
+	this->logger->log_message(Log::Info, L"# joined multicast group %s", ipv4->ToString()->Data());
 }
 
 void ISlangDaemon::on_message(long long timepoint, Platform::String^ remote_peer, uint16 port, uint16 transaction, uint16 response_port, uint8 type, const uint8* message) {
@@ -332,40 +345,42 @@ void ISlangDaemon::clear_if_peer_broken() {
 }
 
 /*************************************************************************************************/
-void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg, Platform::String^ type, uint16 transaction) {
+void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg, uint8 type, uint16 transaction) {
 	if (exn_msg == nullptr) {
-		this->notify_data_sent(size, span_ms);
-		this->logger->log_message(Log::Info, L"<sent %u-byte slang message(%s, %u, %u) to %s:%u>",
-			size, type->Data(), transaction, this->service, host->Data(), port);
+		this->notify_message_sent(size, span_ms);
+		this->logger->log_message(Log::Debug, L"<sent %u-byte slang message(%s, %u, %u) to %s:%u>",
+			size, this->message_typename(type)->Data(), transaction, this->service, host->Data(), port);
 	} else {
 		this->logger->log_message(Log::Warning, exn_msg->Data());
 	}
 }
 
-void ISlangDaemon::cast(uint16 peer_port, const uint8* payload, size_t size, uint8 type, uint16 transaction) {
-	slang_cast(peer_port, payload, size, type, this->service, transaction,
+void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
+	slang_cast(peer, peer_port, payload, type, this->service, transaction,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
-			this->cast_then(host, port, bytes, span_ms, exn_msg, type.ToString(), transaction);
-		});
-}
-
-void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, const uint8* payload, size_t size, uint8 type, uint16 transaction) {
-	slang_cast(peer, peer_port, payload, size, type, this->service, transaction,
-		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
-			this->cast_then(host, port, bytes, span_ms, exn_msg, type.ToString(), transaction);
-		});
-}
-
-void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
-	slang_cast(peer_port, payload, type, this->service, transaction,
-		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
-			this->cast_then(host, port, bytes, span_ms, exn_msg, type.ToString(), transaction);
+			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
 		});
 }
 
 void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
 	slang_cast(peer, peer_port, payload, type, this->service, transaction,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
-			this->cast_then(host, port, bytes, span_ms, exn_msg, type.ToString(), transaction);
+			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
 		});
+}
+
+void ISlangDaemon::cast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
+	this->cast(nullptr, peer_port, payload, type, transaction);
+}
+
+void ISlangDaemon::multicast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
+	this->cast(this->group, peer_port, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->cast(nullptr, peer_port, payload, type, transaction);
+}
+
+void ISlangDaemon::multicast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->cast(this->group, peer_port, payload, type, transaction);
 }
