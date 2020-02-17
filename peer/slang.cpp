@@ -157,8 +157,8 @@ public:
 									total, this->master->message_typename(type)->Data(), transaction, response_port, peer->Data(), port);
 								
 								switch (version) {
-								case 1: this->master->on_message(now_ms, peer, port, transaction, response_port, type, payload); break;
-								default: this->master->on_message(now_ms, peer, port, type, payload);
+								case 1: this->master->on_message(now_ms, peer, response_port, transaction, response_port, type, payload); break;
+								default: this->master->on_message(now_ms, peer, response_port, type, payload);
 								}
 
 								this->master->notify_message_applied(total, current_inexact_milliseconds() - applying_ms);
