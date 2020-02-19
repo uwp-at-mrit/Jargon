@@ -45,7 +45,7 @@ static constexpr size_t slang_message_metadata_upsize = 4U /* header */ + 4U /* 
 static constexpr uint16 slang_message_magic = 0x237E; // '#~'
 
 void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	static DatagramSocket^ socket = ref new DatagramSocket();
+	static DatagramSocket^ socket = make_datagram_socket();
 	static auto stupid_cx = ref new Platform::Array<uint8>(4);
 	static uint8* metainfo = stupid_cx->Data;
 
@@ -235,7 +235,7 @@ ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPee
 
 		this->ghostcat = ghostcat;
 
-		this->socket = ref new DatagramSocket();
+		this->socket = make_datagram_socket();
 		this->socket->MessageReceived += ref new TypedEventHandler<DatagramSocket^, DatagramSocketMessageReceivedEventArgs^>(ghostcat, &ISlangDaemon::GhostDaemon::on_message);
 
 		if (recv_buf > 0) {
