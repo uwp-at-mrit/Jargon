@@ -2,7 +2,7 @@
 
 #include "peer/slang.hpp"
 
-#include "crypto/checksum.hpp"
+#include "checksum/crc32.hpp"
 
 #include "datum/time.hpp"
 #include "datum/bytes.hpp"

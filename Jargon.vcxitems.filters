@@ -10,11 +10,11 @@
     <Filter Include="datum">
       <UniqueIdentifier>{9178e259-6bfc-46ea-956b-e0ce4a8a0184}</UniqueIdentifier>
     </Filter>
-    <Filter Include="crypto">
-      <UniqueIdentifier>{953db432-1d94-420d-a8f0-6c081798d670}</UniqueIdentifier>
-    </Filter>
     <Filter Include="peer">
       <UniqueIdentifier>{ed4450f5-bd1f-4dd4-966b-bd7faced7b84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="checksum">
+      <UniqueIdentifier>{953db432-1d94-420d-a8f0-6c081798d670}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -30,11 +30,11 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)datum\natural.cpp">
       <Filter>datum</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)crypto\checksum.cpp">
-      <Filter>crypto</Filter>
-    </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)peer\slang.cpp">
       <Filter>peer</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)checksum\crc32.cpp">
+      <Filter>checksum</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -56,11 +56,11 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)datum\natural.hpp">
       <Filter>datum</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)crypto\checksum.hpp">
-      <Filter>crypto</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)peer\slang.hpp">
       <Filter>peer</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)checksum\crc32.hpp">
+      <Filter>checksum</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
