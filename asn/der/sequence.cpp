@@ -8,10 +8,6 @@ using namespace WarGrey::GYDM;
 /*************************************************************************************************/
 IASNSequence::IASNSequence(size_t count) : count(count) {}
 
-IASNSequence::IASNSequence(size_t count, const uint8* basn, size_t* offset) : IASNSequence(count) {
-    this->from_octets(basn, offset);
-}
-
 size_t IASNSequence::span() {
     size_t payload = 0;
 

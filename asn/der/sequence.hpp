@@ -7,7 +7,6 @@ namespace WarGrey::GYDM {
     public:
         virtual ~IASNSequence() noexcept {}
         IASNSequence(size_t count);
-        IASNSequence(size_t count, const uint8* basn, size_t* offse = nullptr);
 
     public:
         size_t span();
