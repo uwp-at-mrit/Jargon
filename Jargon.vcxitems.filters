@@ -36,6 +36,9 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)checksum\crc32.cpp">
       <Filter>checksum</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)checksum\ipv4.cpp">
+      <Filter>checksum</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der\base.hpp">
@@ -60,6 +63,9 @@
       <Filter>peer</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)checksum\crc32.hpp">
+      <Filter>checksum</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)checksum\ipv4.hpp">
       <Filter>checksum</Filter>
     </ClInclude>
   </ItemGroup>

@@ -18,6 +18,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\identifier.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\sequence.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)checksum\crc32.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)checksum\ipv4.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)datum\natural.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)peer\slang.cpp" />
   </ItemGroup>
@@ -28,6 +29,7 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der\identifier.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der\sequence.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)checksum\crc32.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)checksum\ipv4.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)datum\natural.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)peer\slang.hpp" />
   </ItemGroup>
