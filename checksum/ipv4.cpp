@@ -11,7 +11,7 @@ static unsigned short update_sum(unsigned short sum, const uint8* message, size_
     unsigned short L = (sum & 0xFFU);
 
     if ((count & 0x01) == 1) {
-        H = message[--end];
+        H += message[--end];
     }
 
     for (size_t idx = start; idx < end; idx += 2) {
