@@ -14,55 +14,55 @@ namespace WarGrey::GYDM {
 
 	void slang_cast_log_message(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg);
 
-	void slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
-	void slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
 
-	void slang_cast(uint16 peer_port, const WarGrey::GYDM::octets& payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
-	void slang_cast(Platform::String^ peer, uint16 peer_port, const WarGrey::GYDM::octets& payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(uint16 peer_port, const WarGrey::GYDM::octets& payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(Platform::String^ peer, uint16 peer_port, const WarGrey::GYDM::octets& payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
 
-	void slang_cast(uint16 peer_port,  WarGrey::GYDM::IASNSequence* payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
-	void slang_cast(Platform::String^ peer, uint16 peer_port, WarGrey::GYDM::IASNSequence* payload,
-		uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(uint16 peer_port,  WarGrey::GYDM::IASNSequence* payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
+	void slang_cast(Platform::String^ peer, uint16 peer_port, WarGrey::GYDM::IASNSequence* payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
+		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
 
 	template<typename E>
-	void slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(peer_port, payload, _I(type), response_port, transaction, fthen);
+	void slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(peer_port, payload, _I(type), response_port, transaction, checksum, fthen);
 	}
 
 	template<typename E>
-	void slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, _C(type), response_port, transaction, fthen);
+	void slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, _C(type), response_port, transaction, checksum, fthen);
 	}
 
 	template<typename E>
-	void slang_cast(uint16 peer_port, const uint8* payload, size_t size
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(nullptr, peer_port, payload, size, _C(type), response_port, transaction, fthen);
-	}
-	
-	template<typename E>
-	void slang_cast(Platform::String^ peer, uint16 peer_port, const uint8* payload, size_t size
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, size, _C(type), response_port, transaction, fthen);
-	}
-
-	template<typename E>
-	void slang_cast(uint16 peer_port, WarGrey::GYDM::IASNSequence* payload
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(nullptr, peer_port, payload, _C(type), response_port, transaction, fthen);
+	void slang_cast(uint16 peer_port, const uint8* payload, size_t size, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(nullptr, peer_port, payload, size, _C(type), response_port, transaction, checksum, fthen);
 	}
 	
 	template<typename E>
-	void slang_cast(Platform::String^ peer, uint16 peer_port, WarGrey::GYDM::IASNSequence* payload
-		, E type, uint16 response_port = 0U, uint16 transaction = 0U, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
-		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, _C(type), response_port, transaction, fthen);
+	void slang_cast(Platform::String^ peer, uint16 peer_port, const uint8* payload, size_t size, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, size, _C(type), response_port, transaction, checksum, fthen);
+	}
+
+	template<typename E>
+	void slang_cast(uint16 peer_port, WarGrey::GYDM::IASNSequence* payload, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(nullptr, peer_port, payload, _C(type), response_port, transaction, checksum, fthen);
+	}
+	
+	template<typename E>
+	void slang_cast(Platform::String^ peer, uint16 peer_port, WarGrey::GYDM::IASNSequence* payload, E type, uint16 response_port = 0U, uint16 transaction = 0U
+		, bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message) {
+		return WarGrey::GYDM::slang_cast(peer, peer_port, payload, _C(type), response_port, transaction, checksum, fthen);
 	}
 
 	/**********************************************************************************************/
@@ -91,6 +91,7 @@ namespace WarGrey::GYDM {
 
 	public:
 		void join_multicast_group(Platform::String^ group_ipv4);
+		void enable_checksum(bool yes_no);
 
 	public:
 		void cast(Platform::String^ peer, uint16 peer_port, const WarGrey::GYDM::octets& payload, uint8 type = 0U, uint16 transaction = 0U);
@@ -153,6 +154,7 @@ namespace WarGrey::GYDM {
 		Platform::Object^ ghostcat;
 		Platform::String^ group;
 		unsigned short service;
+		bool unsafe;
 
 	private:
 		ref class GhostDaemon; // delegate only accepts C++/CX class

@@ -51,7 +51,8 @@ static constexpr size_t slang_checksum_size = 2;
 static constexpr size_t slang_message_metadata_upsize = (slang_checksum_idx + slang_checksum_size /* header */) + 4U /* version 1 fields */;
 static constexpr uint16 slang_message_magic = 0x237E; // '#~'
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction
+	, bool checksumed, slang_cast_task_then_t fthen) {
 	static DatagramSocket^ socket = make_datagram_socket();
 	static auto stupid_cx = ref new Platform::Array<uint8>(slang_message_metadata_upsize);
 	static uint8* metainfo = stupid_cx->Data;
@@ -81,12 +82,17 @@ void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platfor
 			}; break;
 			}
 
-			{ // calculate checksum
+			if (checksumed) { // calculate checksum
 				unsigned short checksum = 0;
 
 				checksum_ipv4(&checksum, metainfo, 0, header_size);
 				checksum_ipv4(&checksum, payload->Data, 0, payload->Length);
-				bigendian_uint16_set(metainfo, slang_checksum_idx, checksum);
+
+				if (checksum == 0) {
+					bigendian_uint16_set(metainfo, slang_checksum_idx, 0xFFFFU);
+				} else {
+					bigendian_uint16_set(metainfo, slang_checksum_idx, checksum);
+				}
 			}
 		}
 		
@@ -141,7 +147,7 @@ public:
 					|| (bigendian_uint16_ref(message, 0) == slang_message_magic)) {
 					unsigned short checksum = bigendian_uint16_ref(message, slang_checksum_idx);
 
-					if (checksum == 0xFFFFU) { // checksum is disabled
+					if (checksum == 0x0000U) { // checksum is disabled
 						this->dispatch_message(message, total, unboxing_ts, peer, port);
 					} else {
 						checksum = checksum_ipv4(message, 0, total);
@@ -212,31 +218,31 @@ private:
 	Syslog* logger;
 };
 
-void WarGrey::GYDM::slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, fthen);
+void WarGrey::GYDM::slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
+	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, checksum, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(uint16 peer_port, const octets& payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, fthen);
+void WarGrey::GYDM::slang_cast(uint16 peer_port, const octets& payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
+	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, checksum, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const octets& payload_raw, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const octets& payload_raw, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
 	auto payload = new Platform::ArrayReference<uint8>((uint8*)payload_raw.c_str(), (unsigned int)payload_raw.size());
 
-	return slang_cast(peer, peer_port, reinterpret_cast<Platform::Array<uint8>^>(payload), type, response_port, transaction, fthen);
+	return slang_cast(peer, peer_port, reinterpret_cast<Platform::Array<uint8>^>(payload), type, response_port, transaction, checksum, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
-	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, fthen);
+void WarGrey::GYDM::slang_cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
+	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, checksum, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
 	size_t payload_span = payload->span();
 	auto basn = ref new Platform::Array<uint8>((unsigned int)(asn_span(payload_span)));
 
 	payload->into_octets((uint8*)basn->Data, 0);
 
-	return slang_cast(peer, peer_port, basn, type, response_port, transaction, fthen);
+	return slang_cast(peer, peer_port, basn, type, response_port, transaction, checksum, fthen);
 }
 
 void WarGrey::GYDM::slang_cast_log_message(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg) {
@@ -249,7 +255,7 @@ void WarGrey::GYDM::slang_cast_log_message(Platform::String^ host, uint16 port, 
 
 /*************************************************************************************************/
 ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, ISlangLocalPeer* cf) : ISlangDaemon(sl, p, 512U, cf) {}
-ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p), group(nullptr) {
+ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p), group(nullptr), unsafe(false) {
 	this->logger = ((sl == nullptr) ? make_silent_logger("Silent Slang Daemon") : sl);
 	this->logger->reference();
 
@@ -331,6 +337,10 @@ void ISlangDaemon::join_multicast_group(Platform::String^ ipv4) {
 	this->logger->log_message(Log::Info, L"# joined multicast group %s", ipv4->ToString()->Data());
 }
 
+void ISlangDaemon::enable_checksum(bool yes_no) {
+	this->unsafe = !yes_no;
+}
+
 void ISlangDaemon::on_message(long long timepoint, Platform::String^ remote_peer, uint16 port, uint16 transaction, uint16 response_port, uint8 type, const uint8* message) {
 	 for (auto peer : this->local_peers) {
 		this->current_peer = peer;
@@ -383,14 +393,14 @@ void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int s
 }
 
 void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
-	slang_cast(peer, peer_port, payload, type, this->service, transaction,
+	slang_cast(peer, peer_port, payload, type, this->service, transaction, !this->unsafe,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
 			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
 		});
 }
 
 void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
-	slang_cast(peer, peer_port, payload, type, this->service, transaction,
+	slang_cast(peer, peer_port, payload, type, this->service, transaction, !this->unsafe,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
 			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
 		});
