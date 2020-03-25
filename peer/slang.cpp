@@ -2,7 +2,7 @@
 
 #include "peer/slang.hpp"
 
-#include "checksum/crc32.hpp"
+#include "checksum/ipv4.hpp"
 
 #include "datum/time.hpp"
 #include "datum/bytes.hpp"
@@ -32,21 +32,28 @@ using namespace Windows::Networking::Sockets;
  *  / magic number:   2 bytes, constant '#~
  *  | version number: 1 byte, default 0
  *  | payload type:   1 byte, hint for decoding the payload
- *  | [payload that encoded as ASN.1 DER, usually it is an ASN.1 Sequence]
+ *  | checksum:       2 bytes, checksum of entire message [algorithm is the same as that used in IP/UDP/TCP]
  *  | [additional fields based on version]
- *  \ checksum:       4 bytes, CRC32 checksum of all fields above
+ *  \ [payload that encoded as ASN.1 DER, usually it is an ASN.1 Sequence]
  *
  * for version 1 message, add two fields:
  *  | transaction id: 2 bytes, initialized by client and recopied by server
  *  | response port:  2 bytes, initialized by client for server to respond
+ *
+ * NOTE
+ * The size of header (plus additional fields) should be even
+ *  or the checksum algorithm may fail to verify the sum since
+ *  it would insert a virtual nil byte before summing up the payload
  */
 
-static constexpr size_t slang_message_metadata_upsize = 4U /* header */ + 4U /* version 1 fields */ + 4U /* checksum */;
+static constexpr size_t slang_checksum_idx = 4;
+static constexpr size_t slang_checksum_size = 2;
+static constexpr size_t slang_message_metadata_upsize = (slang_checksum_idx + slang_checksum_size /* header */) + 4U /* version 1 fields */;
 static constexpr uint16 slang_message_magic = 0x237E; // '#~'
 
 void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, slang_cast_task_then_t fthen) {
 	static DatagramSocket^ socket = make_datagram_socket();
-	static auto stupid_cx = ref new Platform::Array<uint8>(4);
+	static auto stupid_cx = ref new Platform::Array<uint8>(slang_message_metadata_upsize);
 	static uint8* metainfo = stupid_cx->Data;
 
 	auto peer_host = hostname_ref(peer);
@@ -54,36 +61,44 @@ void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platfor
 	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](task<IOutputStream^> opening) {
 		uint8 version = ((response_port == 0) ? 0 : 1);
 		auto udpout = ref new DataWriter(opening.get());
-		unsigned long checksum = 0;
 		double sending_ms = current_inexact_milliseconds();
+		size_t header_size = slang_checksum_idx + slang_checksum_size;
 		
 		socket_writer_standardize(udpout);
 
-		{ // write header
+		{ // initialize header
 			bigendian_uint16_set(metainfo, 0, slang_message_magic);
 			bigendian_uint8_set(metainfo, 2, version);
 			bigendian_uint8_set(metainfo, 3, type);
+			bigendian_uint16_set(metainfo, slang_checksum_idx, 0); // clear checksum
 
-			udpout->WriteBytes(stupid_cx);
-			checksum_crc32(&checksum, metainfo, 0, 4);
+			switch (version) { // write additional fields
+			case 1: {
+				bigendian_uint16_set(metainfo, header_size, transaction);
+				header_size += 2;
+				bigendian_uint16_set(metainfo, header_size, response_port);
+				header_size += 2;
+			}; break;
+			}
+
+			{ // calculate checksum
+				unsigned short checksum = 0;
+
+				checksum_ipv4(&checksum, metainfo, 0, header_size);
+				checksum_ipv4(&checksum, payload->Data, 0, payload->Length);
+				bigendian_uint16_set(metainfo, slang_checksum_idx, checksum);
+			}
 		}
+		
+		{ // send message
+			if (header_size == slang_message_metadata_upsize) {
+				udpout->WriteBytes(stupid_cx);
+			} else {
+				udpout->WriteBytes(reinterpret_cast<Platform::Array<uint8>^>(new Platform::ArrayReference<uint8>((uint8*)metainfo, (unsigned int)header_size)));
+			}
 
-		{ // write payload, stupid C++/CX and UWP
 			udpout->WriteBytes(payload);
-			checksum_crc32(&checksum, payload->Data, 0, payload->Length);
 		}
-
-		switch (version) { // write additional fields
-		case 1: {
-			bigendian_uint16_set(metainfo, 0, transaction);
-			bigendian_uint16_set(metainfo, 2, response_port);
-
-			udpout->WriteBytes(stupid_cx);
-			checksum_crc32(&checksum, metainfo, 0, 4);
-		}; break;
-		}
-
-		udpout->WriteUInt32(checksum);
 
 		create_task(udpout->StoreAsync()).then([=](task<unsigned int> sending) {
 			try {
@@ -122,52 +137,20 @@ public:
 			udpin->ReadBytes(pool);
 
 			try {
-				if ((total > 8) || (bigendian_uint16_ref(message, 0) == slang_message_magic)) {
-					unsigned int checksum_idx = total - 4;
-					unsigned int signature = bigendian_uint32_ref(message, checksum_idx);
-					unsigned long checksum = checksum_crc32(message, 0, checksum_idx);
+				if ((total > (slang_checksum_idx + slang_checksum_size))
+					|| (bigendian_uint16_ref(message, 0) == slang_message_magic)) {
+					unsigned short checksum = bigendian_uint16_ref(message, slang_checksum_idx);
 
-					if (checksum == signature) {
-						uint8 version = bigendian_uint8_ref(message, 2);
-						uint8 type = bigendian_uint8_ref(message, 3);
-						size_t cursor = 4;
-
-						{ // TODO: should we restrict the type of payload? // asn_constructed_predicate(ASNConstructed::Sequence, message, cursor)
-							const uint8* payload = message + cursor;
-							uint16 transaction = 0;
-							uint16 response_port = 0;
-							
-							asn_octets_unbox(message, &cursor);
-
-							switch (version) {
-							case 1: {
-								transaction = bigendian_uint16_ref(message, cursor);
-								cursor += 2;
-								response_port = bigendian_uint16_ref(message, cursor);
-								cursor += 2;
-							}; break;
-							}
-
-							if (cursor == checksum_idx) {
-								double applying_ms = current_inexact_milliseconds();
-								long long now_ms = current_milliseconds();
-
-								this->master->notify_message_unboxed(total, applying_ms - unboxing_ts);
-								this->logger->log_message(Log::Debug, L"<recieved %u-byte slang message(%s, %u, %u) from %s:%u>",
-									total, this->master->message_typename(type)->Data(), transaction, response_port, peer->Data(), port);
-								
-								switch (version) {
-								case 1: this->master->on_message(now_ms, peer, response_port, transaction, response_port, type, payload); break;
-								default: this->master->on_message(now_ms, peer, response_port, type, payload);
-								}
-
-								this->master->notify_message_applied(total, current_inexact_milliseconds() - applying_ms);
-							} else {
-								task_discard(this->logger, L"%s:%d: discard truncated slang message", peer->Data(), port);
-							}
-						}
+					if (checksum == 0xFFFFU) { // checksum is disabled
+						this->dispatch_message(message, total, unboxing_ts, peer, port);
 					} else {
-						task_fatal(this->logger, L"%s:%d: unverifiable slang message signature", peer->Data(), port);
+						checksum = checksum_ipv4(message, 0, total);
+
+						if (checksum == 0U) {
+							this->dispatch_message(message, total, unboxing_ts, peer, port);
+						} else {
+							task_fatal(this->logger, L"%s:%d: unverifiable slang message[checksum: 0x%04X]", peer->Data(), port, checksum);
+						}
 					}
 				} else {
 					task_fatal(this->logger, L"%s:%d: invalid slang message", peer->Data(), port);
@@ -178,6 +161,48 @@ public:
 			} catch (Platform::Exception ^ e) {
 				this->logger->log_message(Log::Warning, e->Message);
 				this->master->clear_if_peer_broken();
+			}
+		}
+	}
+
+private:
+	void dispatch_message(const uint8* message, unsigned int total, double unboxing_ts, Platform::String^ peer, uint16 port) {
+		uint8 version = bigendian_uint8_ref(message, 2);
+		uint8 type = bigendian_uint8_ref(message, 3);
+		size_t cursor = slang_checksum_idx + slang_checksum_size;
+		uint16 transaction = 0;
+		uint16 response_port = 0;
+
+		switch (version) {
+		case 1: {
+			transaction = bigendian_uint16_ref(message, cursor);
+			cursor += 2;
+			response_port = bigendian_uint16_ref(message, cursor);
+			cursor += 2;
+		}; break;
+		}
+
+		{ // extract payload
+			const uint8* payload = message + cursor;
+			
+			asn_octets_unbox(message, &cursor);
+
+			if (cursor == total) { // is this necessary?
+				double applying_ms = current_inexact_milliseconds();
+				long long now_ms = current_milliseconds();
+
+				this->master->notify_message_unboxed(total, applying_ms - unboxing_ts);
+				this->logger->log_message(Log::Debug, L"<recieved %u-byte slang message(%s, %u, %u) from %s:%u>",
+					total, this->master->message_typename(type)->Data(), transaction, response_port, peer->Data(), port);
+
+				switch (version) {
+				case 1: this->master->on_message(now_ms, peer, response_port, transaction, response_port, type, payload); break;
+				default: this->master->on_message(now_ms, peer, response_port, type, payload);
+				}
+
+				this->master->notify_message_applied(total, current_inexact_milliseconds() - applying_ms);
+			} else {
+				task_discard(this->logger, L"%s:%d: discard truncated slang message", peer->Data(), port);
 			}
 		}
 	}
