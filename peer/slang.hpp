@@ -1,6 +1,7 @@
 #pragma once
 
 #include <list>
+#include <unordered_map>
 
 #include "network/udp.hpp"
 #include "asn/der.hpp"
@@ -18,7 +19,7 @@ namespace WarGrey::GYDM {
 		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
 	void slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
 		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
-
+	
 	void slang_cast(uint16 peer_port, const WarGrey::GYDM::octets& payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
 		bool checksum = true, WarGrey::GYDM::slang_cast_task_then_t fthen = slang_cast_log_message);
 	void slang_cast(Platform::String^ peer, uint16 peer_port, const WarGrey::GYDM::octets& payload, uint8 type = 0U, uint16 response_port = 0U, uint16 transaction = 0U,
@@ -91,6 +92,7 @@ namespace WarGrey::GYDM {
 
 	public:
 		void join_multicast_group(Platform::String^ group_ipv4);
+		void bind_multicast_service(uint16 service);
 		void enable_checksum(bool yes_no);
 
 	public:
@@ -143,6 +145,7 @@ namespace WarGrey::GYDM {
 		void on_message(long long timepoint_ms, Platform::String^ remote_peer, uint16 port, uint8 type, const uint8* message);
 		void on_message(long long timepoint_ms, Platform::String^ remote_peer, uint16 port, uint16 transaction, uint16 response_port, uint8 type, const uint8* message);		
 		void cast_then(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg, uint8 type, uint16 transaction);
+		void multicast(Windows::Storage::Streams::DataWriter^ udpout, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 transaction);
 
 	protected:
 		std::list<WarGrey::GYDM::ISlangLocalPeer*> local_peers;
@@ -150,9 +153,10 @@ namespace WarGrey::GYDM {
 		WarGrey::SCADA::Syslog* logger;
 
     private:
+		std::unordered_map<uint16, Windows::Storage::Streams::DataWriter^> grpouts;
 		Windows::Networking::Sockets::DatagramSocket^ socket;
+		Windows::Networking::HostName^ group;
 		Platform::Object^ ghostcat;
-		Platform::String^ group;
 		unsigned short service;
 		bool unsafe;
 

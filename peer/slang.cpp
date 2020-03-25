@@ -51,72 +51,85 @@ static constexpr size_t slang_checksum_size = 2;
 static constexpr size_t slang_message_metadata_upsize = (slang_checksum_idx + slang_checksum_size /* header */) + 4U /* version 1 fields */;
 static constexpr uint16 slang_message_magic = 0x237E; // '#~'
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction
-	, bool checksumed, slang_cast_task_then_t fthen) {
-	static DatagramSocket^ socket = make_datagram_socket();
+typedef std::function<void(DataWriter^ udpout)> slang_cast_stream_then_t;
+
+#define SlangBytes(p) reinterpret_cast<Platform::Array<uint8>^>(new Platform::ArrayReference<uint8>((uint8*)p.c_str(), static_cast<unsigned int>(p.size())))
+
+static void slang_cast_stream_detach(DataWriter^ udpout) {
+	udpout->DetachStream();
+}
+
+static void slang_cast_stream_do_nothing(DataWriter^ udpout) {
+	// Empty function
+}
+
+static inline Platform::Array<uint8>^ slang_bytes(IASNSequence* payload) {
+	size_t payload_span = payload->span();
+	auto basn = ref new Platform::Array<uint8>((unsigned int)(asn_span(payload_span)));
+
+	payload->into_octets((uint8*)basn->Data, 0);
+
+	return basn;
+}
+
+static void slang_do_cast(DataWriter^ udpout, HostName^ peer_host, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction
+	, bool checksumed, slang_cast_task_then_t fthen, slang_cast_stream_then_t fwthen) {
 	static auto stupid_cx = ref new Platform::Array<uint8>(slang_message_metadata_upsize);
 	static uint8* metainfo = stupid_cx->Data;
 
-	auto peer_host = hostname_ref(peer);
+	uint8 version = ((response_port == 0) ? 0 : 1);
+	double sending_ms = current_inexact_milliseconds();
+	size_t header_size = slang_checksum_idx + slang_checksum_size;
 
-	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](task<IOutputStream^> opening) {
-		uint8 version = ((response_port == 0) ? 0 : 1);
-		auto udpout = ref new DataWriter(opening.get());
-		double sending_ms = current_inexact_milliseconds();
-		size_t header_size = slang_checksum_idx + slang_checksum_size;
-		
-		socket_writer_standardize(udpout);
+	{ // initialize header
+		bigendian_uint16_set(metainfo, 0, slang_message_magic);
+		bigendian_uint8_set(metainfo, 2, version);
+		bigendian_uint8_set(metainfo, 3, type);
+		bigendian_uint16_set(metainfo, slang_checksum_idx, 0); // clear checksum
 
-		{ // initialize header
-			bigendian_uint16_set(metainfo, 0, slang_message_magic);
-			bigendian_uint8_set(metainfo, 2, version);
-			bigendian_uint8_set(metainfo, 3, type);
-			bigendian_uint16_set(metainfo, slang_checksum_idx, 0); // clear checksum
-
-			switch (version) { // write additional fields
-			case 1: {
-				bigendian_uint16_set(metainfo, header_size, transaction);
-				header_size += 2;
-				bigendian_uint16_set(metainfo, header_size, response_port);
-				header_size += 2;
-			}; break;
-			}
-
-			if (checksumed) { // calculate checksum
-				unsigned short checksum = 0;
-
-				checksum_ipv4(&checksum, metainfo, 0, header_size);
-				checksum_ipv4(&checksum, payload->Data, 0, payload->Length);
-
-				if (checksum == 0) {
-					bigendian_uint16_set(metainfo, slang_checksum_idx, 0xFFFFU);
-				} else {
-					bigendian_uint16_set(metainfo, slang_checksum_idx, checksum);
-				}
-			}
+		switch (version) { // write additional fields
+		case 1: {
+			bigendian_uint16_set(metainfo, header_size, transaction);
+			header_size += 2;
+			bigendian_uint16_set(metainfo, header_size, response_port);
+			header_size += 2;
+		}; break;
 		}
-		
-		{ // send message
-			if (header_size == slang_message_metadata_upsize) {
-				udpout->WriteBytes(stupid_cx);
+
+		if (checksumed) { // calculate checksum
+			unsigned short checksum = 0;
+
+			checksum_ipv4(&checksum, metainfo, 0, header_size);
+			checksum_ipv4(&checksum, payload->Data, 0, payload->Length);
+
+			if (checksum == 0) {
+				bigendian_uint16_set(metainfo, slang_checksum_idx, 0xFFFFU);
 			} else {
-				udpout->WriteBytes(reinterpret_cast<Platform::Array<uint8>^>(new Platform::ArrayReference<uint8>((uint8*)metainfo, (unsigned int)header_size)));
+				bigendian_uint16_set(metainfo, slang_checksum_idx, checksum);
 			}
+		}
+	}
 
-			udpout->WriteBytes(payload);
+	{ // send message
+		if (header_size == slang_message_metadata_upsize) {
+			udpout->WriteBytes(stupid_cx);
+		} else {
+			udpout->WriteBytes(reinterpret_cast<Platform::Array<uint8>^>(new Platform::ArrayReference<uint8>((uint8*)metainfo, (unsigned int)header_size)));
 		}
 
-		create_task(udpout->StoreAsync()).then([=](task<unsigned int> sending) {
-			try {
-				unsigned int total = sending.get();
+		udpout->WriteBytes(payload);
+	}
 
-				fthen(peer_host->CanonicalName, peer_port, total, current_inexact_milliseconds() - sending_ms, nullptr);
-				udpout->DetachStream();
-			} catch (task_canceled&) {
-			} catch (Platform::Exception^ e) {
-				fthen(peer_host->CanonicalName, peer_port, 0, 0.0, e->Message);
-			}
-			});
+	create_task(udpout->StoreAsync()).then([=](task<unsigned int> sending) {
+		try {
+			unsigned int total = sending.get();
+
+			fthen(peer_host->CanonicalName, peer_port, total, current_inexact_milliseconds() - sending_ms, nullptr);
+			fwthen(udpout);
+		} catch (task_canceled&) {
+		} catch (Platform::Exception^ e) {
+			fthen(peer_host->CanonicalName, peer_port, 0, 0.0, e->Message);
+		}
 		});
 }
 
@@ -218,6 +231,23 @@ private:
 	Syslog* logger;
 };
 
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction
+	, bool checksumed, slang_cast_task_then_t fthen) {
+	static DatagramSocket^ socket = make_datagram_socket();
+	auto peer_host = hostname_ref(peer);
+
+	create_task(socket->GetOutputStreamAsync(peer_host, peer_port.ToString())).then([=](task<IOutputStream^> opening) {
+		try {
+			auto udpout = ref new DataWriter(opening.get());
+
+			socket_writer_standardize(udpout);
+			slang_do_cast(udpout, peer_host, peer_port, payload, type, response_port, transaction, checksumed, fthen, slang_cast_stream_detach);
+		} catch (task_canceled&) {
+		} catch (Platform::Exception^ e) {
+			fthen(peer_host->CanonicalName, peer_port, 0, 0.0, e->Message);
+		}});
+}
+
 void WarGrey::GYDM::slang_cast(uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
 	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, checksum, fthen);
 }
@@ -226,10 +256,8 @@ void WarGrey::GYDM::slang_cast(uint16 peer_port, const octets& payload, uint8 ty
 	return slang_cast(nullptr, peer_port, payload, type, response_port, transaction, checksum, fthen);
 }
 
-void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const octets& payload_raw, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
-	auto payload = new Platform::ArrayReference<uint8>((uint8*)payload_raw.c_str(), (unsigned int)payload_raw.size());
-
-	return slang_cast(peer, peer_port, reinterpret_cast<Platform::Array<uint8>^>(payload), type, response_port, transaction, checksum, fthen);
+void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, const octets& payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
+	return slang_cast(peer, peer_port, SlangBytes(payload), type, response_port, transaction, checksum, fthen);
 }
 
 void WarGrey::GYDM::slang_cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
@@ -237,12 +265,7 @@ void WarGrey::GYDM::slang_cast(uint16 peer_port, IASNSequence* payload, uint8 ty
 }
 
 void WarGrey::GYDM::slang_cast(Platform::String^ peer, uint16 peer_port, IASNSequence* payload, uint8 type, uint16 response_port, uint16 transaction, bool checksum, slang_cast_task_then_t fthen) {
-	size_t payload_span = payload->span();
-	auto basn = ref new Platform::Array<uint8>((unsigned int)(asn_span(payload_span)));
-
-	payload->into_octets((uint8*)basn->Data, 0);
-
-	return slang_cast(peer, peer_port, basn, type, response_port, transaction, checksum, fthen);
+	return slang_cast(peer, peer_port, slang_bytes(payload), type, response_port, transaction, checksum, fthen);
 }
 
 void WarGrey::GYDM::slang_cast_log_message(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg) {
@@ -332,10 +355,40 @@ void ISlangDaemon::bind() {
 void ISlangDaemon::join_multicast_group(Platform::String^ ipv4) {
 	// TODO: rejoin after network adapter changed if necessary.
 
-	this->socket->JoinMulticastGroup(hostname_ref(ipv4));
-	this->group = ipv4;
+	this->group = hostname_ref(ipv4);
+	this->socket->JoinMulticastGroup(this->group);
+	
+	{ // clear binded services
+		for (auto it = this->grpouts.begin(); it != this->grpouts.end(); it++) {
+			it->second->DetachStream();
+		}
+
+		this->grpouts.clear();
+	}
+	
 	this->logger->log_message(Log::Info, L"# joined multicast group %s", ipv4->ToString()->Data());
 }
+
+void ISlangDaemon::bind_multicast_service(uint16 service) {
+	if (this->group != nullptr) {
+		auto maybe_exists = this->grpouts.find(service);
+
+		if (maybe_exists == this->grpouts.end()) {
+			create_task(this->socket->GetOutputStreamAsync(this->group, service.ToString())).then([=](task<IOutputStream^> opening) {
+				try {
+					auto udpout = ref new DataWriter(opening.get());
+
+					socket_writer_standardize(udpout);
+					this->grpouts.insert(std::pair<uint16, DataWriter^>(service, udpout));
+					this->logger->log_message(Log::Info, L"# binded multicast service %d", service);
+				} catch (task_canceled&) {
+				} catch (Platform::Exception^ e) {
+					this->get_logger()->log_message(Log::Error, L"unable to bind the multicast service[%d]: %s", service, e->Message->Data());
+				}});
+		}
+	}
+}
+
 
 void ISlangDaemon::enable_checksum(bool yes_no) {
 	this->unsafe = !yes_no;
@@ -392,6 +445,13 @@ void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int s
 	}
 }
 
+void ISlangDaemon::multicast(DataWriter^ udpout, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 transaction) {
+	slang_do_cast(udpout, this->group, peer_port, payload, type, this->service, transaction, !this->unsafe,
+		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
+			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
+		}, slang_cast_stream_do_nothing);
+}
+
 void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
 	slang_cast(peer, peer_port, payload, type, this->service, transaction, !this->unsafe,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
@@ -411,7 +471,13 @@ void ISlangDaemon::cast(uint16 peer_port, const octets& payload, uint8 type, uin
 }
 
 void ISlangDaemon::multicast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
-	this->cast(this->group, peer_port, payload, type, transaction);
+	auto maybe_binded_service = this->grpouts.find(peer_port);
+
+	if (maybe_binded_service == this->grpouts.end()) {
+		this->cast(this->group->CanonicalName, peer_port, payload, type, transaction);
+	} else {
+		this->multicast(maybe_binded_service->second, peer_port, SlangBytes(payload), type, transaction);
+	}
 }
 
 void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
@@ -419,5 +485,11 @@ void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uin
 }
 
 void ISlangDaemon::multicast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
-	this->cast(this->group, peer_port, payload, type, transaction);
+	auto maybe_binded_service = this->grpouts.find(peer_port);
+
+	if (maybe_binded_service == this->grpouts.end()) {
+		this->cast(this->group->CanonicalName, peer_port, payload, type, transaction);
+	} else {
+		this->multicast(maybe_binded_service->second, peer_port, slang_bytes(payload), type, transaction);
+	}
 }
