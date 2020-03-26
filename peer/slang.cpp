@@ -278,31 +278,24 @@ void WarGrey::GYDM::slang_cast_log_message(Platform::String^ host, uint16 port, 
 
 /*************************************************************************************************/
 ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, ISlangLocalPeer* cf) : ISlangDaemon(sl, p, 512U, cf) {}
-ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p), group(nullptr), unsafe(false) {
+ISlangDaemon::ISlangDaemon(Syslog* sl, uint16 p, size_t recv_buf, ISlangLocalPeer* cf) : service(p), group(nullptr), target(nullptr), unsafe(false), ghostcat(nullptr) {
 	this->logger = ((sl == nullptr) ? make_silent_logger("Silent Slang Daemon") : sl);
 	this->logger->reference();
 
-	this->push_slang_local_peer(cf);
-
-	{ // prepare UDP server
-		auto ghostcat = ref new ISlangDaemon::GhostDaemon(this);
-
-		this->ghostcat = ghostcat;
-
-		this->socket = make_datagram_socket();
-		this->socket->MessageReceived += ref new TypedEventHandler<DatagramSocket^, DatagramSocketMessageReceivedEventArgs^>(ghostcat, &ISlangDaemon::GhostDaemon::on_message);
-
-		if (recv_buf > 0) {
-			this->socket->Control->InboundBufferSizeInBytes = (unsigned int)(recv_buf + slang_message_metadata_upsize);
-		}
+	this->socket = make_datagram_socket();
+		
+	if (recv_buf > 0) {
+		this->socket->Control->InboundBufferSizeInBytes = (unsigned int)(recv_buf + slang_message_metadata_upsize);
 	}
 
-	this->bind();
+	this->push_slang_local_peer(cf);
 };
 
 ISlangDaemon::~ISlangDaemon() {
+	this->clear_binded_services();
+
 	if (this->socket != nullptr) {
-		delete this->socket; // stop the peer loop before release transactions.
+		delete this->socket;
 	}
 
 	this->logger->destroy();
@@ -326,14 +319,18 @@ Platform::String^ ISlangDaemon::message_typename(uint8 type) {
 
 void ISlangDaemon::push_slang_local_peer(ISlangLocalPeer* peer) {
 	if (peer != nullptr) {
+		this->bind_if_has_not();
 		this->local_peers.push_back(peer);
 	}
 }
 
-void ISlangDaemon::bind() {
-	if (this->socket != nullptr) {
+void ISlangDaemon::bind_if_has_not() {
+	if (this->ghostcat == nullptr) {
 		auto bind_task = create_task(this->socket->BindServiceNameAsync(this->service.ToString()));
 		
+		this->ghostcat = ref new ISlangDaemon::GhostDaemon(this);
+		this->socket->MessageReceived += ref new TypedEventHandler<DatagramSocket^, DatagramSocketMessageReceivedEventArgs^>(this->ghostcat, &ISlangDaemon::GhostDaemon::on_message);
+
 		bind_task.then([=](task<void> binding) {
 			try {
 				binding.get();
@@ -355,26 +352,44 @@ void ISlangDaemon::bind() {
 void ISlangDaemon::join_multicast_group(Platform::String^ ipv4) {
 	// TODO: rejoin after network adapter changed if necessary.
 
-	this->group = hostname_ref(ipv4);
-	this->socket->JoinMulticastGroup(this->group);
-	
-	{ // clear binded services
-		for (auto it = this->grpouts.begin(); it != this->grpouts.end(); it++) {
-			it->second->DetachStream();
-		}
+	this->bind_if_has_not(); // joining a multicast group is only meaningful for slang servers
+	this->socket->JoinMulticastGroup(hostname_ref(ipv4));
 
-		this->grpouts.clear();
+	if (this->target == nullptr) {
+		this->clear_binded_services();
 	}
-	
+
 	this->logger->log_message(Log::Info, L"# joined multicast group %s", ipv4->ToString()->Data());
 }
 
+void ISlangDaemon::set_target_multicast_group(Platform::String^ ipv4) {
+	// NOTE: This API is designed for cases that only slang client is needed
+
+	if (ipv4 == nullptr) {
+		if (this->target != nullptr) {
+			this->target = nullptr;
+			this->clear_binded_services();
+		}
+	} else {
+		if ((this->target == nullptr) || (this->target->CanonicalName != ipv4)) {
+			this->target = hostname_ref(ipv4);
+			this->clear_binded_services();
+		}
+	}
+}
+
 void ISlangDaemon::bind_multicast_service(uint16 service) {
-	if (this->group != nullptr) {
+	HostName^ host = this->multicast_host();
+
+	if (service == 0) {
+		service = this->service;
+	}
+
+	if ((this->group != nullptr) && (service > 0)) {
 		auto maybe_exists = this->grpouts.find(service);
 
 		if (maybe_exists == this->grpouts.end()) {
-			create_task(this->socket->GetOutputStreamAsync(this->group, service.ToString())).then([=](task<IOutputStream^> opening) {
+			create_task(this->socket->GetOutputStreamAsync(host, service.ToString())).then([=](task<IOutputStream^> opening) {
 				try {
 					auto udpout = ref new DataWriter(opening.get());
 
@@ -391,7 +406,7 @@ void ISlangDaemon::bind_multicast_service(uint16 service) {
 
 
 void ISlangDaemon::enable_checksum(bool yes_no) {
-	this->unsafe = !yes_no;
+	this->unsafe = (!yes_no);
 }
 
 void ISlangDaemon::on_message(long long timepoint, Platform::String^ remote_peer, uint16 port, uint16 transaction, uint16 response_port, uint8 type, const uint8* message) {
@@ -434,6 +449,24 @@ void ISlangDaemon::clear_if_peer_broken() {
 	}
 }
 
+void ISlangDaemon::clear_binded_services() {
+	for (auto it = this->grpouts.begin(); it != this->grpouts.end(); it++) {
+		it->second->DetachStream();
+	}
+
+	this->grpouts.clear();
+}
+
+HostName^ ISlangDaemon::multicast_host() {
+	return (this->target != nullptr) ? this->target : this->group;
+}
+
+Platform::String^ ISlangDaemon::multicast_hostname() {
+	HostName^ host = this->multicast_host();
+
+	return (host == nullptr) ? nullptr : host->CanonicalName;
+}
+
 /*************************************************************************************************/
 void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int size, double span_ms, Platform::String^ exn_msg, uint8 type, uint16 transaction) {
 	if (exn_msg == nullptr) {
@@ -446,7 +479,7 @@ void ISlangDaemon::cast_then(Platform::String^ host, uint16 port, unsigned int s
 }
 
 void ISlangDaemon::multicast(DataWriter^ udpout, uint16 peer_port, Platform::Array<uint8>^ payload, uint8 type, uint16 transaction) {
-	slang_do_cast(udpout, this->group, peer_port, payload, type, this->service, transaction, !this->unsafe,
+	slang_do_cast(udpout, this->multicast_host(), peer_port, payload, type, this->service, transaction, !this->unsafe,
 		[=](Platform::String^ host, uint16 port, unsigned int bytes, double span_ms, Platform::String^ exn_msg) {
 			this->cast_then(host, port, bytes, span_ms, exn_msg, type, transaction);
 		}, slang_cast_stream_do_nothing);
@@ -466,30 +499,54 @@ void ISlangDaemon::cast(Platform::String^ peer, uint16 peer_port, IASNSequence* 
 		});
 }
 
-void ISlangDaemon::cast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
-	this->cast(nullptr, peer_port, payload, type, transaction);
-}
-
 void ISlangDaemon::multicast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
 	auto maybe_binded_service = this->grpouts.find(peer_port);
 
 	if (maybe_binded_service == this->grpouts.end()) {
-		this->cast(this->group->CanonicalName, peer_port, payload, type, transaction);
+		this->cast(this->multicast_hostname(), peer_port, payload, type, transaction);
 	} else {
 		this->multicast(maybe_binded_service->second, peer_port, SlangBytes(payload), type, transaction);
 	}
-}
-
-void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
-	this->cast(nullptr, peer_port, payload, type, transaction);
 }
 
 void ISlangDaemon::multicast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
 	auto maybe_binded_service = this->grpouts.find(peer_port);
 
 	if (maybe_binded_service == this->grpouts.end()) {
-		this->cast(this->group->CanonicalName, peer_port, payload, type, transaction);
+		this->cast(this->multicast_hostname(), peer_port, payload, type, transaction);
 	} else {
 		this->multicast(maybe_binded_service->second, peer_port, slang_bytes(payload), type, transaction);
 	}
+}
+
+void ISlangDaemon::cast(Platform::String^ peer, const octets& payload, uint8 type, uint16 transaction) {
+	this->cast(peer, this->service, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(uint16 peer_port, const octets& payload, uint8 type, uint16 transaction) {
+	this->cast(nullptr, peer_port, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(const octets& payload, uint8 type, uint16 transaction) {
+	this->cast(this->service, payload, type, transaction);
+}
+
+void ISlangDaemon::multicast(const octets& payload, uint8 type, uint16 transaction) {
+	this->multicast(this->service, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(Platform::String^ peer, IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->cast(peer, this->service, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(uint16 peer_port, IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->cast(nullptr, peer_port, payload, type, transaction);
+}
+
+void ISlangDaemon::cast(IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->cast(this->service, payload, type, transaction);
+}
+
+void ISlangDaemon::multicast(IASNSequence* payload, uint8 type, uint16 transaction) {
+	this->multicast(this->service, payload, type, transaction);
 }

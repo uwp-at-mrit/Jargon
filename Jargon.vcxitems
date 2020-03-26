@@ -21,6 +21,10 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)checksum\ipv4.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)datum\natural.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)peer\slang.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\logging.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der.hpp" />
@@ -32,5 +36,9 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)checksum\ipv4.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)datum\natural.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)peer\slang.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\logging.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.hpp" />
   </ItemGroup>
 </Project>

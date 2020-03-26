@@ -16,6 +16,12 @@
     <Filter Include="checksum">
       <UniqueIdentifier>{953db432-1d94-420d-a8f0-6c081798d670}</UniqueIdentifier>
     </Filter>
+    <Filter Include="syslog">
+      <UniqueIdentifier>{6644b39f-36ec-49df-85bf-e87972013347}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="syslog\receiver">
+      <UniqueIdentifier>{ccb01511-2a5e-49d6-8bf1-878425e4e26b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(MSBuildThisFileDirectory)asn\der\base.cpp">
@@ -38,6 +44,16 @@
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)checksum\ipv4.cpp">
       <Filter>checksum</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\logging.cpp">
+      <Filter>syslog</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.cpp">
+      <Filter>syslog\receiver</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.cpp">
+      <Filter>syslog\receiver</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -67,6 +83,16 @@
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)checksum\ipv4.hpp">
       <Filter>checksum</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\logging.hpp">
+      <Filter>syslog</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.hpp">
+      <Filter>syslog\receiver</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.hpp">
+      <Filter>syslog\receiver</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
