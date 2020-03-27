@@ -600,11 +600,10 @@ size_t WarGrey::GYDM::asn_ia5_into_octets(std::string& str, uint8* octets, size_
 std::string WarGrey::GYDM::asn_octets_to_ia5(const uint8* bia5, size_t* offset0) {
     size_t offset = ((offset0 == nullptr) ? 0 : (*offset0));
     size_t size = asn_octets_unbox(bia5, &offset);
-    Natural nat(bia5, offset - size, offset);
 
     SET_BOX(offset0, offset);
 
-    return std::string((char*)bia5, offset - size, size);
+    return std::string((char*)(bia5 + (offset - size)), size);
 }
 
 size_t WarGrey::GYDM::asn_utf8_span(Platform::String^ str) {
