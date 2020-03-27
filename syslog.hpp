@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syslog/logging.hpp"
+#include "syslog/metainfo.hpp"
 #include "syslog/receiver/racket.hpp"
 #include "syslog/receiver/vstudio.hpp"
 

@@ -3,14 +3,12 @@
 #include <deque>
 
 #include "datum/object.hpp"
+#include "syslog/metainfo.hpp"
+
 #include "asn/der/enumerated.hpp"
 
 namespace WarGrey::GYDM {
 	define_asn_enum(log, Log, Debug, Info, Notice, Warning, Error, Critical, Alarm, Panic, _ );
-
-	private struct SyslogMetainfo {
-		Platform::String^ timestamp;
-	};
 
 	private class ISyslogReceiver abstract : public WarGrey::SCADA::SharedObject {
 	public:
@@ -19,13 +17,13 @@ namespace WarGrey::GYDM {
 
 	public:
 		void log_message(WarGrey::GYDM::Log level, Platform::String^ message,
-			WarGrey::GYDM::SyslogMetainfo& data, Platform::String^ topic);
+			WarGrey::GYDM::SyslogMetainfo* data, Platform::String^ topic);
 
 	protected:
 		virtual void on_log_message(
 			WarGrey::GYDM::Log level,
 			Platform::String^ message,
-			WarGrey::GYDM::SyslogMetainfo& data,
+			WarGrey::GYDM::SyslogMetainfo* data,
 			Platform::String^ topic) = 0;
 
 	protected:
@@ -60,6 +58,7 @@ namespace WarGrey::GYDM {
 
 	private:
 		WarGrey::GYDM::Log level;
+		WarGrey::GYDM::SyslogMetainfo* metadata;
 		Platform::String^ topic;
 		Syslog* parent;
 

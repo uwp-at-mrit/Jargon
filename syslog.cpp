@@ -43,7 +43,7 @@ Syslog* WarGrey::GYDM::default_logger() {
 		winlog->push_log_receiver(new VisualStudioReceiver());
 
 		if (racket != nullptr) {
-			winlog->push_log_receiver(racket);
+			// winlog->push_log_receiver(racket);
 		}
 
 		winlog->reference();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "syslog/logging.hpp"
+#include "syslog/metainfo.hpp"
 
 namespace WarGrey::GYDM {
 	private class VisualStudioReceiver : public WarGrey::GYDM::ISyslogReceiver {
@@ -10,7 +11,7 @@ namespace WarGrey::GYDM {
 
 	protected:
 		void on_log_message(WarGrey::GYDM::Log level, Platform::String^ message,
-			WarGrey::GYDM::SyslogMetainfo& data, Platform::String^ topic) override;
+			WarGrey::GYDM::SyslogMetainfo* data, Platform::String^ topic) override;
 
 	protected:
 		~VisualStudioReceiver() noexcept {}

@@ -7,7 +7,7 @@ using namespace WarGrey::SCADA;
 using namespace WarGrey::GYDM;
 
 /*************************************************************************************************/
-void ISyslogReceiver::log_message(Log level, Platform::String^ message, SyslogMetainfo& data, Platform::String^ topic) {
+void ISyslogReceiver::log_message(Log level, Platform::String^ message, SyslogMetainfo* data, Platform::String^ topic) {
 	if (level >= this->level) {
 		if ((this->topic == nullptr) || (this->topic->Equals(topic))) {
 			this->on_log_message(level, message, data, topic);
@@ -21,6 +21,9 @@ Syslog::Syslog(Log level, Platform::String^ topic, Syslog* parent) : level(level
 		this->parent = parent;
 		this->parent->reference();
 	}
+
+	this->metadata = new SyslogMetainfo();
+	this->metadata->reference();
 }
 
 Syslog::~Syslog() {
@@ -32,6 +35,8 @@ Syslog::~Syslog() {
 	if (parent != nullptr) {
 		this->parent->destroy();
 	}
+
+	this->metadata->destroy();
 }
 
 Platform::String^ Syslog::get_name() {
@@ -72,16 +77,15 @@ void Syslog::log_message(Platform::String^ alt_topic, Log level, const wchar_t* 
 }
 
 void Syslog::do_log_message(Log level, Platform::String^ message, Platform::String^ topic, bool prefix) {
-	SyslogMetainfo attachment;
 	auto actual_topic = ((topic == nullptr) ? this->topic : topic);
 	auto actual_message = (((!prefix) || (actual_topic == nullptr)) ? message : (actual_topic + ": " + message));
 	Syslog* logger = this;
 
-	attachment.timestamp = update_nowstamp();
+	this->metadata->timestamp = current_milliseconds();
 
 	while (logger != nullptr) {
 		for (auto r : logger->receivers) {
-			r->log_message(level, actual_message, attachment, actual_topic);
+			r->log_message(level, actual_message, this->metadata, actual_topic);
 		}
 
 		// TODO: do we need propagated level?
