@@ -49,9 +49,6 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\logging.cpp">
       <Filter>syslog</Filter>
     </ClCompile>
-    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.cpp">
-      <Filter>syslog\receiver</Filter>
-    </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.cpp">
       <Filter>syslog\receiver</Filter>
     </ClCompile>
@@ -59,6 +56,9 @@
       <Filter>syslog</Filter>
     </ClCompile>
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.cpp">
+      <Filter>syslog\receiver</Filter>
+    </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\rsyslog.cpp">
       <Filter>syslog\receiver</Filter>
     </ClCompile>
   </ItemGroup>
@@ -94,9 +94,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\logging.hpp">
       <Filter>syslog</Filter>
     </ClInclude>
-    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.hpp">
-      <Filter>syslog\receiver</Filter>
-    </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.hpp">
       <Filter>syslog\receiver</Filter>
     </ClInclude>
@@ -104,6 +101,9 @@
       <Filter>syslog</Filter>
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.hpp">
+      <Filter>syslog\receiver</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\rsyslog.hpp">
       <Filter>syslog\receiver</Filter>
     </ClInclude>
   </ItemGroup>

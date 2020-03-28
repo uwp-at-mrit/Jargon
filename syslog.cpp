@@ -8,15 +8,17 @@ using namespace Windows::ApplicationModel;
 
 /*************************************************************************************************/
 static Platform::String^ default_rsyslog_group = nullptr;
+static unsigned short default_rsyslog_port = 0U;
+
 static Platform::String^ default_logging_topic = "WarGrey";
 static Log default_logging_level = Log::Debug;
 
 /*************************************************************************************************/
-RacketReceiver* WarGrey::GYDM::default_racket_logging_receiver() {
-	static RacketReceiver* rsyslog = nullptr;
+RsyslogReceiver* WarGrey::GYDM::default_rsyslog_logging_receiver() {
+	static RsyslogReceiver* rsyslog = nullptr;
 
 	if ((rsyslog == nullptr) && (default_rsyslog_group != nullptr)) {
-		rsyslog = new RacketReceiver(default_rsyslog_group, 1618, Log::Debug);
+		rsyslog = new RsyslogReceiver(default_rsyslog_group, default_rsyslog_port, Log::Debug);
 		rsyslog->reference();
 	}
 
@@ -43,8 +45,14 @@ void WarGrey::GYDM::set_default_logging_topic(Platform::String^ topic) {
 	default_logging_topic = topic;
 }
 
-void WarGrey::GYDM::set_default_rsyslog_multicast_group(Platform::String^ ipv4) {
+void WarGrey::GYDM::set_default_rsyslog_target(Platform::String^ ipv4, unsigned short port) {
 	default_rsyslog_group = ipv4;
+
+	if (port == 0) {
+		default_rsyslog_port = 514;
+	} else {
+		default_rsyslog_port = port;
+	}
 }
 
 /*************************************************************************************************/
@@ -52,14 +60,14 @@ Syslog* WarGrey::GYDM::default_logger() {
 	static Syslog* winlog;
 
 	if (winlog == nullptr) {
-		RacketReceiver* racket = default_racket_logging_receiver();
+		RsyslogReceiver* racket = default_rsyslog_logging_receiver();
 		WindowsReceiver* win_etl = default_windows_logging_receiver();
 
 		winlog = make_logger(default_logging_level, default_logging_topic, nullptr);
 		winlog->push_log_receiver(new VisualStudioReceiver());
 
 		if (racket != nullptr) {
-			// winlog->push_log_receiver(racket);
+			winlog->push_log_receiver(racket);
 		}
 
 		if (win_etl != nullptr) {

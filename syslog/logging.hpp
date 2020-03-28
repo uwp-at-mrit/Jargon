@@ -5,10 +5,8 @@
 #include "datum/object.hpp"
 #include "syslog/metainfo.hpp"
 
-#include "asn/der/enumerated.hpp"
-
 namespace WarGrey::GYDM {
-	define_asn_enum(log, Log, Debug, Info, Notice, Warning, Error, Critical, Alarm, Panic, _ );
+	private enum class Log : unsigned int { Debug, Info, Notice, Warning, Error, Critical, Alarm, Panic, _ };
 
 	private class ISyslogReceiver abstract : public WarGrey::SCADA::SharedObject {
 	public:
