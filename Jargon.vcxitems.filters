@@ -58,6 +58,9 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\metainfo.cpp">
       <Filter>syslog</Filter>
     </ClCompile>
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.cpp">
+      <Filter>syslog\receiver</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der\base.hpp">
@@ -99,6 +102,9 @@
     </ClInclude>
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\metainfo.hpp">
       <Filter>syslog</Filter>
+    </ClInclude>
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.hpp">
+      <Filter>syslog\receiver</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

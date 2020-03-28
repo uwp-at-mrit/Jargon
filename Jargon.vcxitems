@@ -26,6 +26,7 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\metainfo.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.cpp" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)asn\der.hpp" />
@@ -42,5 +43,6 @@
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\metainfo.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\racket.hpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\vstudio.hpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)syslog\receiver\windows.hpp" />
   </ItemGroup>
 </Project>

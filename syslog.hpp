@@ -3,6 +3,7 @@
 #include "syslog/logging.hpp"
 #include "syslog/metainfo.hpp"
 #include "syslog/receiver/racket.hpp"
+#include "syslog/receiver/windows.hpp"
 #include "syslog/receiver/vstudio.hpp"
 
 namespace WarGrey::GYDM {
@@ -15,6 +16,9 @@ namespace WarGrey::GYDM {
     WarGrey::GYDM::Syslog* make_system_logger(Platform::String^ topic);
     WarGrey::GYDM::Syslog* make_system_logger(WarGrey::GYDM::Log level, Platform::String^ topic);
     WarGrey::GYDM::Syslog* make_logger(WarGrey::GYDM::Log level, Platform::String^ topic, WarGrey::GYDM::Syslog* parent = nullptr);
+
+    WarGrey::GYDM::RacketReceiver* default_racket_logging_receiver();
+    WarGrey::GYDM::WindowsReceiver* default_windows_logging_receiver();
 
     void syslog(WarGrey::GYDM::Log level, Platform::String^ message);
     void syslog(WarGrey::GYDM::Log level, const wchar_t* fmt, ...);

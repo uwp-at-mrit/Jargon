@@ -4,12 +4,16 @@
 
 using namespace WarGrey::GYDM;
 
+using namespace Windows::ApplicationModel;
+
+/*************************************************************************************************/
 static Platform::String^ default_rsyslog_group = nullptr;
 static Platform::String^ default_logging_topic = "WarGrey";
 static Log default_logging_level = Log::Debug;
 
-static RacketReceiver* default_rsyslog_receiver() {
-	static RacketReceiver* rsyslog;
+/*************************************************************************************************/
+RacketReceiver* WarGrey::GYDM::default_racket_logging_receiver() {
+	static RacketReceiver* rsyslog = nullptr;
 
 	if ((rsyslog == nullptr) && (default_rsyslog_group != nullptr)) {
 		rsyslog = new RacketReceiver(default_rsyslog_group, 1618, Log::Debug);
@@ -17,6 +21,17 @@ static RacketReceiver* default_rsyslog_receiver() {
 	}
 
 	return rsyslog;
+}
+
+WindowsReceiver* WarGrey::GYDM::default_windows_logging_receiver() {
+	static WindowsReceiver* etl = nullptr;
+
+	if (etl == nullptr) {
+		etl = new WindowsReceiver(Package::Current->DisplayName, Log::Debug);
+		etl->reference();
+	}
+
+	return etl;
 }
 
 /*************************************************************************************************/
@@ -37,13 +52,18 @@ Syslog* WarGrey::GYDM::default_logger() {
 	static Syslog* winlog;
 
 	if (winlog == nullptr) {
-		RacketReceiver* racket = default_rsyslog_receiver();
+		RacketReceiver* racket = default_racket_logging_receiver();
+		WindowsReceiver* win_etl = default_windows_logging_receiver();
 
 		winlog = make_logger(default_logging_level, default_logging_topic, nullptr);
 		winlog->push_log_receiver(new VisualStudioReceiver());
 
 		if (racket != nullptr) {
 			// winlog->push_log_receiver(racket);
+		}
+
+		if (win_etl != nullptr) {
+			winlog->push_log_receiver(win_etl);
 		}
 
 		winlog->reference();
