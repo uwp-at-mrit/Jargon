@@ -42,7 +42,7 @@ internal:
 		}
 
 		this->channel->LogMessage(message, etl_level);
-		this->channel->LogValuePair("timestamp", data->timestamp);
+		this->channel->LogValuePair("timestamp", int(data->timestamp));
 	}
 
 private:
