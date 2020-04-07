@@ -258,6 +258,27 @@ bytes Natural::to_hexstring() const {
 	return hex;
 }
 
+bytes Natural::to_binstring() const {
+	bytes bin(fxmax((unsigned int)this->payload, 1U) * 8, '0');
+	size_t lsb_idx = bin.size() - 1U;
+
+	for (size_t idx = 0; idx < this->payload; idx--) {
+		uint8 ubyte = this->natural[this->capacity - idx - 1];
+		uint16 bits = 0x1U;
+
+		do {
+			if (ubyte & bits > 0) {
+				bin[lsb_idx] = '1';
+			}
+			
+			lsb_idx--;
+			bits <<= 1;
+		} while (bits < 0x100);
+	}
+
+	return bin;
+}
+
 /*************************************************************************************************/
 Natural::Natural(const Natural& n) : natural(nullptr), capacity(fxmax(n.payload, sizeof(unsigned long long))), payload(n.payload) {
 	this->natural = this->malloc(this->capacity);

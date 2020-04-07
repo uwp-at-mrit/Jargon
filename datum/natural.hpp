@@ -188,6 +188,7 @@ namespace WarGrey::GYDM {
 	public:
 		WarGrey::SCADA::bytes to_bytes() const;
 		WarGrey::SCADA::bytes to_hexstring() const;
+		WarGrey::SCADA::bytes to_binstring() const;
 
 	private:
 		Natural(void* null, long long capacity);
