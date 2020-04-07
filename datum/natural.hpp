@@ -179,7 +179,7 @@ namespace WarGrey::GYDM {
 
 	public:
 		size_t length() const;
-		size_t integer_length() const;
+		size_t integer_length(uint8 alignment = 0U) const;
 		size_t fixnum_count(WarGrey::GYDM::Fixnum type = Fixnum::Uint64) const;
 
 	public:
@@ -188,7 +188,7 @@ namespace WarGrey::GYDM {
 	public:
 		WarGrey::SCADA::bytes to_bytes() const;
 		WarGrey::SCADA::bytes to_hexstring() const;
-		WarGrey::SCADA::bytes to_binstring() const;
+		WarGrey::SCADA::bytes to_binstring(uint8 alignment = 0U) const;
 
 	private:
 		Natural(void* null, long long capacity);

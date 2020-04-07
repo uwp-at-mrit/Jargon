@@ -223,12 +223,24 @@ size_t Natural::length() const {
 	return this->payload;
 }
 
-size_t Natural::integer_length() const {
+size_t Natural::integer_length(uint8 alignment) const {
 	size_t s = 0;
 
 	if (this->payload > 0) {
 		s = (this->payload - 1) * 8;
 		s += ::integer_length(this->natural[this->capacity - this->payload]);
+	}
+
+	if (alignment > 0) {
+		if (s > 0) {
+			size_t remainder = s % alignment;
+
+			if (remainder > 0) {
+				s += (alignment - remainder);
+			}
+		} else {
+			s = alignment;
+		}
 	}
 
 	return s;
@@ -258,9 +270,10 @@ bytes Natural::to_hexstring() const {
 	return hex;
 }
 
-bytes Natural::to_binstring() const {
-	bytes bin(fxmax((unsigned int)this->payload, 1U) * 8, '0');
-	size_t lsb_idx = bin.size() - 1U;
+bytes Natural::to_binstring(uint8 alignment) const {
+	size_t bsize = this->integer_length(alignment);
+	bytes bin(bsize, '0');
+	size_t lsb_idx = bsize - 1U;
 
 	for (size_t idx = 0; idx < this->payload; idx++) {
 		uint8 ubyte = this->natural[this->capacity - idx - 1];
@@ -270,7 +283,11 @@ bytes Natural::to_binstring() const {
 				bin[lsb_idx] = '1';
 			}
 			
-			lsb_idx--;
+			if (lsb_idx > 0) {
+				lsb_idx--;
+			} else {
+				break;
+			}
 		};
 	}
 
