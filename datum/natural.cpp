@@ -262,18 +262,16 @@ bytes Natural::to_binstring() const {
 	bytes bin(fxmax((unsigned int)this->payload, 1U) * 8, '0');
 	size_t lsb_idx = bin.size() - 1U;
 
-	for (size_t idx = 0; idx < this->payload; idx--) {
+	for (size_t idx = 0; idx < this->payload; idx++) {
 		uint8 ubyte = this->natural[this->capacity - idx - 1];
-		uint16 bits = 0x1U;
-
-		do {
-			if (ubyte & bits > 0) {
+		
+		for (size_t bits = 0; bits < 8; bits++) {
+			if ((ubyte & (0x1U << bits)) > 0) {
 				bin[lsb_idx] = '1';
 			}
 			
 			lsb_idx--;
-			bits <<= 1;
-		} while (bits < 0x100);
+		};
 	}
 
 	return bin;
