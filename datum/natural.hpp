@@ -163,6 +163,7 @@ namespace WarGrey::GYDM {
 
 		bool is_bit_set(unsigned long long m);
 		WarGrey::GYDM::Natural bit_field(unsigned long long start, unsigned long long end);
+		unsigned long long bitfield(unsigned long long start, unsigned long long end);
 
 	public:
 		uint8& operator[] (int idx);
