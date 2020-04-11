@@ -1389,6 +1389,22 @@ unsigned long long Natural::bitfield(unsigned long long start, unsigned long lon
 	return sub;
 }
 
+long long Natural::signed_bitfield(unsigned long long start, unsigned long long end) { // counting from right side
+	unsigned long long mask_length = fxmin(end - start, 64ULL) - 1;
+	unsigned long long raw = this->bitfield(start, end);
+	long long sint = 0LL;
+
+	if ((raw >> mask_length) > 0) {
+		unsigned long long mask = (1 << mask_length) - 1U;
+		
+		sint = static_cast<long long>(raw | ((~0ULL) & (~mask)));
+	} else {
+		sint = static_cast<long long>(raw);
+	}
+
+	return sint;
+}
+
 /*************************************************************************************************/
 uint8& Natural::operator[](int idx) {
 	size_t bidx = 0U;
