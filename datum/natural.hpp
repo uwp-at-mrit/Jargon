@@ -162,9 +162,9 @@ namespace WarGrey::GYDM {
 		friend inline WarGrey::GYDM::Natural operator^(WarGrey::GYDM::Natural lhs, const WarGrey::GYDM::Natural& rhs) { return lhs ^= rhs; }
 
 		bool is_bit_set(unsigned long long m);
-		WarGrey::GYDM::Natural bit_field(unsigned long long start, unsigned long long end);
-		unsigned long long bitfield(unsigned long long start, unsigned long long end);
-		long long signed_bitfield(unsigned long long start, unsigned long long end);
+		WarGrey::GYDM::Natural bit_field(unsigned long long start, unsigned long long endp1);
+		unsigned long long bitfield(unsigned long long start, unsigned long long endp1);
+		long long signed_bitfield(unsigned long long start, unsigned long long endp1);
 
 	public:
 		uint8& operator[] (int idx);
