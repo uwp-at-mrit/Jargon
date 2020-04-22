@@ -44,12 +44,12 @@ namespace WarGrey::GYDM {
 		}
 
 	public:
-		Natural(const WarGrey::GYDM::Natural& n);
-		Natural(WarGrey::GYDM::Natural&& n);
+		Natural(const WarGrey::GYDM::Natural& n); // copy constructor
+		Natural(WarGrey::GYDM::Natural&& n);      // move constructor
 
 		WarGrey::GYDM::Natural& operator=(unsigned long long n);
-		WarGrey::GYDM::Natural& operator=(const WarGrey::GYDM::Natural& n);
-		WarGrey::GYDM::Natural& operator=(WarGrey::GYDM::Natural&& n);
+		WarGrey::GYDM::Natural& operator=(const WarGrey::GYDM::Natural& n); // copy assignment operator
+		WarGrey::GYDM::Natural& operator=(WarGrey::GYDM::Natural&& n);      // move assignment operator
 
 	public: // NOTE: C++20 has operator<=>
 		int compare(unsigned long long rhs) const;

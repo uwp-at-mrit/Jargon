@@ -295,7 +295,7 @@ bytes Natural::to_binstring(uint8 alignment) const {
 }
 
 /*************************************************************************************************/
-Natural::Natural(const Natural& n) : natural(nullptr), capacity(fxmax(n.payload, sizeof(unsigned long long))), payload(n.payload) {
+Natural::Natural(const Natural& n) : natural(nullptr), capacity(fxmax(n.payload, sizeof(unsigned long long))), payload(n.payload) { // copy constructor
 	this->natural = this->malloc(this->capacity);
 
 	if (this->payload > 0) {
@@ -305,7 +305,7 @@ Natural::Natural(const Natural& n) : natural(nullptr), capacity(fxmax(n.payload,
 	}
 }
 
-Natural::Natural(Natural&& n) : natural(n.natural), capacity(n.capacity), payload(n.payload) {
+Natural::Natural(Natural&& n) : natural(n.natural), capacity(n.capacity), payload(n.payload) { // move constructor
 	n.on_moved();
 }
 
@@ -315,39 +315,39 @@ Natural& Natural::operator=(unsigned long long n) {
 	return (*this);
 }
 
-Natural& Natural::operator=(const Natural& n) {
-	if (n.payload > this->capacity) {
-		if (this->natural != nullptr) {
-			delete[] this->natural;
+Natural& Natural::operator=(const Natural& n) { // copy assignment operator
+	if (this != &n) {
+		if (n.payload > this->capacity) {
+			if (this->natural != nullptr) {
+				delete[] this->natural;
+			}
+
+			this->capacity = n.payload;
+			this->natural = this->malloc(this->capacity);
 		}
 
-		this->capacity = n.payload;
-		this->natural = this->malloc(this->capacity);
-	}
+		this->payload = n.payload;
+		if (this->payload > 0) {
+			size_t payload_idx = this->capacity - this->payload;
+			size_t n_idx = n.capacity - this->payload;
 
-	this->payload = n.payload;
-	if (this->payload > 0) {
-		size_t payload_idx = this->capacity - this->payload;
-		size_t n_idx = n.capacity - this->payload;
-
-		memcpy(this->natural + payload_idx, n.natural + n_idx, this->payload);
+			memcpy(this->natural + payload_idx, n.natural + n_idx, this->payload);
+		}
 	}
 
 	return (*this);
 }
 
-Natural& Natural::operator=(Natural&& n) {
-	if (this != &n) {
-		if (this->natural != nullptr) {
-			delete[] this->natural;
-		}
-
-		this->natural = n.natural;
-		this->capacity = n.capacity;
-		this->payload = n.payload;
-
-		n.on_moved();
+Natural& Natural::operator=(Natural&& n) { // move assignment operator
+	if (this->natural != nullptr) {
+		delete[] this->natural;
 	}
+
+	this->natural = n.natural;
+	this->capacity = n.capacity;
+	this->payload = n.payload;
+
+	n.on_moved();
 
 	return (*this);
 }
