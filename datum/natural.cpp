@@ -1319,10 +1319,10 @@ bool Natural::is_bit_set(unsigned long long m) {
 	return set;
 }
 
-Natural Natural::bit_field(unsigned long long start, unsigned long long end) { // counting from right side
+Natural Natural::bit_field(unsigned long long start, unsigned long long endp1) { // counting from right side
 	size_t startq = size_t(start / 8);
-	size_t endq = size_t(end) / 8;
-	size_t endr = size_t(end % 8);
+	size_t endq = size_t(endp1) / 8;
+	size_t endr = size_t(endp1 % 8);
 	Natural sub(nullptr, 0LL);
 
 	if (startq < this->payload) {
@@ -1353,65 +1353,36 @@ Natural Natural::bit_field(unsigned long long start, unsigned long long end) { /
 	return sub;
 }
 
-#include "syslog.hpp"
-#include "datum/string.hpp"
 unsigned long long Natural::bitfield(unsigned long long start, unsigned long long endp1) { // counting from right side
 	unsigned long long sub = 0x0U;
-	size_t end = fxmin(start + 64, endp1);
-	size_t startq = size_t(start / 8);
-	size_t endq = size_t(end) / 8;
-	size_t endr = size_t(end % 8);
+	
+	endp1 = fxmin(start + 64, fxmin(endp1, this->payload * 8U + 1U));
 
-	for (size_t i = 0; i < this->payload; i++) {
-		unsigned char ch = this->natural[this->capacity - i - 1];
-
-		syslog(Log::Info, L"[%d: %d]%S{%02X}", i, i * 8, binumber(ch, 8).c_str(), ch);
-	}
-
-	if (startq < this->payload) {
-		size_t startr = (size_t)(start % 8);
+	if ((endp1 > 0) && (endp1 > start)) {
+		size_t startq = size_t(start / 8);
+		size_t startr = size_t(start % 8);
+		size_t endq = size_t(endp1) / 8;
+		size_t endr = size_t(endp1) % 8;
 		size_t terminator = this->capacity - startq - 1;
 
-		if (endq >= this->payload) {
-			endq = this->payload;
-			endr = 0U;
-		}
-
 		if (endq > startq) {
-			size_t idx = this->capacity - endq;
-
-			for (size_t i = startq; i <= endq; i++) {
-				if (i == startq) {
-					syslog(Log::Info, L">> %S[%d][%d]", binumber(this->natural[this->capacity - i - 1], 8U).c_str(), i, startr);
-				} else if (i == endq) {
-					syslog(Log::Info, L">> %S[%d][%d]", binumber(this->natural[this->capacity - i - 1], 8U).c_str(), i, endr);
-				} else {
-					syslog(Log::Info, L">> %S[%d]", binumber(this->natural[this->capacity - i - 1], 8U).c_str(), i);
-				}
-			}
+			size_t idx = this->capacity - endq - 1;
 
 			if (endr > 0) {
-				sub = this->natural[idx];
-				sub &= ((1U << endr) - 1U);
+				sub = this->natural[idx++] & ((1U << endr) - 1U);
 			} else {
-				sub = this->natural[++idx];
+				idx++;
 			}
 
-			while (idx < (terminator - 1)) {
+			while (idx < terminator) {
 				sub <<= 8;
-				sub |= this->natural[++idx];
+				sub |= this->natural[idx++];
 			};
-			
-			sub <<= (8 - startr);
-			sub |= (this->natural[++idx] >> startr);
-		} else if (endq == startq) {
-			sub = this->natural[terminator];
-			
-			if (endr > 0) {
-				sub &= ((1U << endr) - 1U);
-			}
 
-			sub >>= startr;
+			sub <<= (8 - startr);
+			sub |= (this->natural[terminator] >> startr);
+		} else if (endq == startq) {
+			sub = (this->natural[terminator] & ((1U << endr) - 1U)) >> startr;
 		}
 	}
 
